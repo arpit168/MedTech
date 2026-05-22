@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import {
   Calendar,
   Activity,
@@ -8,9 +8,9 @@ import {
   Download,
   Plus,
   Trash2,
-  ChevronRight,
+  
   CheckCircle,
-  AlertCircle,
+  
 } from "lucide-react";
 import api from "../services/api";
 import toast from "react-hot-toast";
