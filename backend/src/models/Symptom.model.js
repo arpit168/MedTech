@@ -40,4 +40,4 @@ const symptomTimelineSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('SymptomTimeline', symptomTimelineSchema);
+export default  mongoose.model('SymptomTimeline', symptomTimelineSchema);
