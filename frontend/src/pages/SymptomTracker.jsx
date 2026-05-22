@@ -84,22 +84,61 @@ const SymptomTracker = () => {
     }
   };
 
-  const generateDoctorReport = async () => {
-    try {
-      const response = await api.get("/symptoms/doctor-summary");
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `doctor-report-${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      toast.success("Doctor report generated!");
-    } catch (error) {
-      toast.error("Failed to generate report");
+ const generateDoctorReport = async () => {
+  try {
+    const response = await api.get("/symptoms/doctor-summary");
+
+    // Agar data empty ho
+    if (
+      !response.data ||
+      !response.data.timelineData ||
+      response.data.timelineData.length === 0
+    ) {
+      toast.error("No symptom data available");
+      return;
     }
-  };
+
+    // JSON file create
+    const blob = new Blob(
+      [JSON.stringify(response.data, null, 2)],
+      {
+        type: "application/json",
+      }
+    );
+
+    // Download URL create
+    const url = window.URL.createObjectURL(blob);
+
+    // Download trigger
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `doctor-report-${
+      new Date().toISOString().split("T")[0]
+    }.json`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Memory cleanup
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Doctor report generated!");
+  } catch (error) {
+    console.error("Doctor report error:", error);
+
+    if (error.response?.status === 404) {
+      toast.error("No symptom data available");
+    } else if (error.response?.status === 401) {
+      toast.error("Please login again");
+    } else {
+      toast.error(
+        error.response?.data?.message ||
+        "Failed to generate report"
+      );
+    }
+  }
+};
 
   const commonSymptoms = [
     "Fever",
