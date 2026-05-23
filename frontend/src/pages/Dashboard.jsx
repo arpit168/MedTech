@@ -6,564 +6,500 @@ import {
   FileSpreadsheet,
   Bell,
   ChevronRight,
-  AlertCircle,
-  ArrowUpRight,
-  Clock,
-  Microscope,
-  Pill,
-  ClipboardList,
+ 
 } from "lucide-react";
-
 import api from "../services/api";
 import toast from "react-hot-toast";
 
-/* =========================================================
-   CUSTOM HOOK
-========================================================= */
+const Dashboard = () => {
+  const navigate = useNavigate();
 
-const useDashboardData = () => {
   const [stats, setStats] = useState({
     prescriptions: 0,
     symptomEntries: 0,
     reports: 0,
     abnormalAlerts: 0,
-    uniqueMedications: 0,
-    healthScore: 85,
   });
 
-  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
     try {
       setLoading(true);
-      setError("");
 
       const [prescriptionsRes, reportsRes] = await Promise.all([
-        api.get("/prescriptions").catch(() => ({ data: [] })),
-        api.get("/reports").catch(() => ({ data: [] })),
+        api.get("/prescriptions"),
+        api.get("/reports"),
       ]);
 
       const prescriptions = prescriptionsRes?.data || [];
       const reports = reportsRes?.data || [];
 
-      const medications = new Set();
-
-      prescriptions.forEach((rx) => {
-        if (Array.isArray(rx.medications)) {
-          rx.medications.forEach((med) => {
-            medications.add(med.toLowerCase());
-          });
-        }
-      });
-
-      const activity = [];
-
-      prescriptions.slice(0, 3).forEach((rx) => {
-        activity.push({
-          id: `rx-${rx._id || Math.random()}`,
-          type: "prescription",
-          title: "Prescription Analyzed",
-          timestamp: rx.createdAt || new Date().toISOString(),
-          description: `${rx.medications?.length || 0} medications processed`,
-        });
-      });
-
-      reports.slice(0, 3).forEach((report) => {
-        const abnormal = report?.abnormalCount > 0;
-
-        activity.push({
-          id: `report-${report._id || Math.random()}`,
-          type: "report",
-          title: abnormal
-            ? "Abnormalities Detected"
-            : "Report Processed",
-          timestamp: report.createdAt || new Date().toISOString(),
-          description: abnormal
-            ? `${report.abnormalCount} abnormal values found`
-            : "All values normal",
-          status: abnormal ? "abnormal" : "normal",
-        });
-      });
-
-      activity.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() -
-          new Date(a.timestamp).getTime()
-      );
-
-      const abnormalCount = reports.filter(
-        (r) => r?.abnormalCount > 0
-      ).length;
-
-      const healthScore = Math.max(
-        65,
-        Math.min(
-          98,
-          85 - abnormalCount * 3 + (prescriptions.length > 0 ? 2 : 0)
-        )
-      );
-
-      setRecentActivity(activity.slice(0, 5));
-
       setStats({
         prescriptions: prescriptions.length,
         symptomEntries: 12,
         reports: reports.length,
-        abnormalAlerts: abnormalCount,
-        uniqueMedications: medications.size,
-        healthScore,
+        abnormalAlerts: reports.filter((report) => report?.abnormalCount > 0).length,
       });
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load dashboard");
-      toast.error("Failed to load dashboard");
+    } catch (error) {
+      console.error("Dashboard Error:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  return {
-    stats,
-    recentActivity,
-    loading,
-    error,
-    refetch: fetchData,
-  };
-};
-
-/* =========================================================
-   STAT CARD
-========================================================= */
-
-const StatCard = ({
-  title,
-  value,
-  icon: Icon,
-  loading,
-}) => {
-  return (
-    <div className="stat-card">
-      <div className="stat-top">
-        <div className="icon-box">
-          <Icon size={20} />
-        </div>
-
-        <div className="trend">
-          <ArrowUpRight size={12} />
-          12%
-        </div>
-      </div>
-
-      <div className="stat-value">
-        {loading ? "..." : value}
-      </div>
-
-      <div className="stat-title">{title}</div>
-    </div>
-  );
-};
-
-/* =========================================================
-   FEATURE CARD
-========================================================= */
-
-const FeatureCard = ({
-  title,
-  description,
-  icon: Icon,
-  onClick,
-}) => {
-  return (
-    <div className="feature-card" onClick={onClick}>
-      <div className="feature-icon">
-        <Icon size={22} />
-      </div>
-
-      <h3>{title}</h3>
-
-      <p>{description}</p>
-
-      <button>
-        Get Started
-        <ChevronRight size={16} />
-      </button>
-    </div>
-  );
-};
-
-/* =========================================================
-   ACTIVITY ITEM
-========================================================= */
-
-const getActivityIcon = (type, status) => {
-  switch (type) {
-    case "prescription":
-      return Pill;
-
-    case "report":
-      return status === "abnormal"
-        ? AlertCircle
-        : Microscope;
-
-    default:
-      return Bell;
-  }
-};
-
-const ActivityCard = ({ item }) => {
-  const Icon = getActivityIcon(item.type, item.status);
-
-  return (
-    <div className="activity-item">
-      <div className="activity-icon">
-        <Icon size={16} />
-      </div>
-
-      <div className="activity-content">
-        <div className="activity-title">
-          {item.title}
-        </div>
-
-        <div className="activity-description">
-          {item.description}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* =========================================================
-   MAIN COMPONENT
-========================================================= */
-
-const Dashboard = () => {
-  const navigate = useNavigate();
-
-  const {
-    stats,
-    recentActivity,
-    loading,
-    error,
-    refetch,
-  } = useDashboardData();
-
   const features = [
     {
       title: "Prescription Digitizer",
-      description:
-        "Upload prescriptions and detect medicine conflicts.",
-      path: "/prescription",
       icon: FileText,
+      path: "/prescription",
+      color: "from-blue-500 to-cyan-400",
+      glow: "rgba(56,189,248,.18)",
+      description: "Upload prescriptions, detect conflicts & duplicates",
     },
     {
       title: "Symptom Tracker",
-      description:
-        "Track daily symptoms and generate reports.",
-      path: "/symptom-tracker",
       icon: Activity,
+      path: "/symptom-tracker",
+      color: "from-violet-500 to-fuchsia-400",
+      glow: "rgba(168,85,247,.18)",
+      description: "Track symptoms daily and generate doctor reports",
     },
     {
       title: "Report Organizer",
-      description:
-        "Analyze blood reports and abnormalities.",
-      path: "/reports",
       icon: FileSpreadsheet,
+      path: "/reports",
+      color: "from-emerald-500 to-teal-400",
+      glow: "rgba(16,185,129,.16)",
+      description: "Analyze blood tests and detect abnormalities",
     },
   ];
 
+  const cards = [
+    {
+      title: "Prescriptions Analyzed",
+      value: stats.prescriptions,
+      icon: FileText,
+      gradient: "from-blue-500 to-cyan-400",
+      accent: "text-cyan-300",
+    },
+    {
+      title: "Symptom Entries",
+      value: stats.symptomEntries,
+      icon: Activity,
+      gradient: "from-violet-500 to-fuchsia-400",
+      accent: "text-violet-300",
+    },
+    {
+      title: "Reports Uploaded",
+      value: stats.reports,
+      icon: FileSpreadsheet,
+      gradient: "from-emerald-500 to-teal-400",
+      accent: "text-emerald-300",
+    },
+    {
+      title: "Abnormal Alerts",
+      value: stats.abnormalAlerts,
+      icon: Bell,
+      gradient:
+        stats.abnormalAlerts > 0
+          ? "from-red-500 to-rose-400"
+          : "from-slate-500 to-slate-400",
+      accent:
+        stats.abnormalAlerts > 0 ? "text-rose-300" : "text-slate-300",
+    },
+  ];
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; }
+    body { background: #090d14; }
+
+    .dash-wrap {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,.16), transparent 30%),
+        radial-gradient(circle at bottom left, rgba(168,85,247,.14), transparent 28%),
+        #090d14;
+      color: #e2e8f0;
+      font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    .dash-wrap::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: .35;
+    }
+
+    .dash-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 42px 18px 64px;
+    }
+
+    .dash-hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 34px;
+      animation: fadeUp .5s ease both;
+    }
+
+    .dash-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      letter-spacing: .6px;
+      color: #94a3b8;
+      margin-bottom: 14px;
+    }
+
+    .dash-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -1px;
+      color: #f8fafc;
+      margin: 0;
+    }
+
+    .dash-title span {
+      color: #38bdf8;
+    }
+
+    .dash-subtitle {
+      margin-top: 10px;
+      max-width: 640px;
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .dash-status {
+      width: 100%;
+      max-width: 360px;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      backdrop-filter: blur(14px);
+      padding: 22px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.24);
+    }
+
+    .dash-status-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .dash-status-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .dash-status h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      line-height: 1;
+      color: #f8fafc;
+      margin: 0;
+    }
+
+    .dash-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(16,185,129,.12);
+      color: #86efac;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .dash-progress {
+      margin-top: 18px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      overflow: hidden;
+    }
+
+    .dash-progress > div {
+      height: 100%;
+      width: 78%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0ea5e9, #8b5cf6, #22d3ee);
+    }
+
+    .dash-progress-text {
+      margin-top: 10px;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .dash-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .dash-stats {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin-bottom: 28px;
+    }
+
+    .dash-tools {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .dash-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 50px rgba(0,0,0,.22);
+      transition: transform .25s ease, border-color .25s ease, background .25s ease;
+      animation: fadeUp .5s ease both;
+    }
+
+    .dash-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+    }
+
+    .dash-card-inner {
+      position: relative;
+      z-index: 1;
+      padding: 24px;
+    }
+
+    .dash-card-glow {
+      position: absolute;
+      inset: auto -40px -40px auto;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      filter: blur(24px);
+      opacity: .9;
+    }
+
+    .dash-icon-box {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .dash-stat-value {
+      margin-top: 18px;
+      font-family: 'Syne', sans-serif;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .dash-stat-title {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .dash-feature-title {
+      margin-top: 18px;
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #f8fafc;
+      line-height: 1.2;
+    }
+
+    .dash-feature-desc {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .dash-btn {
+      width: 100%;
+      margin-top: 18px;
+      border: none;
+      border-radius: 14px;
+      padding: 13px 16px;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: #07111f;
+      background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+      box-shadow: 0 10px 30px rgba(56,189,248,.22);
+      transition: transform .2s ease, opacity .2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .dash-btn:hover { transform: translateY(-1px); opacity: .96; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      .dash-inner { padding: 28px 14px 52px; }
+      .dash-card-inner { padding: 20px; }
+      .dash-status { max-width: 100%; }
+      .dash-title { font-size: 30px; }
+    }
+  `;
+
   return (
     <>
-      <style>{`
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
+      <style>{css}</style>
+      <div className="dash-wrap">
+        <div className="dash-inner">
+          <header className="dash-hero">
+            <div>
+              <div className="dash-eyebrow">
+                <Activity size={12} color="#38bdf8" />
+                Smart Health Dashboard
+              </div>
+              <h1 className="dash-title">
+                Welcome <span>Back</span> 👋
+              </h1>
+              <p className="dash-subtitle">
+                Manage your health records intelligently with prescriptions, symptom tracking, and report analysis in one clean workspace.
+              </p>
+            </div>
 
-        body {
-          background: #0f172a;
-          color: white;
-          font-family: sans-serif;
-        }
+            <div className="dash-status">
+              <div className="dash-status-label">Health Status</div>
+              <div className="dash-status-row">
+                <h2>Stable</h2>
+                <div className="dash-badge">Monitoring Active</div>
+              </div>
+              <div className="dash-progress">
+                <div />
+              </div>
+              <p className="dash-progress-text">
+                Overall health monitoring is active.
+              </p>
+            </div>
+          </header>
 
-        .dashboard {
-          min-height: 100vh;
-          padding: 30px;
-        }
+          <section className="dash-grid dash-stats">
+            {cards.map((card, index) => {
+              const Icon = card.icon;
+              return (
+                <div
+                  key={index}
+                  className="dash-card"
+                  style={{ animationDelay: `${index * 70}ms` }}
+                >
+                  <div
+                    className={`dash-card-glow bg-gradient-to-br ${card.gradient}`}
+                    style={{ background: `linear-gradient(135deg, ${card.accent.includes("cyan") ? "rgba(56,189,248,.24), rgba(34,211,238,.12)" : card.accent.includes("violet") ? "rgba(168,85,247,.24), rgba(236,72,153,.12)" : card.accent.includes("emerald") ? "rgba(16,185,129,.22), rgba(45,212,191,.12)" : "rgba(251,113,133,.22), rgba(251,146,60,.12)"})` }}
+                  />
+                  <div className="dash-card-inner">
+                    <div className="dash-icon-box">
+                      <Icon size={24} className={card.accent} />
+                    </div>
+                    <div className="dash-stat-value">
+                      {loading ? "..." : card.value}
+                    </div>
+                    <div className="dash-stat-title">{card.title}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
 
-        .header {
-          margin-bottom: 30px;
-        }
-
-        .header h1 {
-          font-size: 40px;
-          margin-bottom: 10px;
-        }
-
-        .header p {
-          color: #94a3b8;
-        }
-
-        .error-box {
-          background: rgba(255,0,0,0.1);
-          border: 1px solid rgba(255,0,0,0.2);
-          padding: 16px;
-          border-radius: 12px;
-          margin-bottom: 20px;
-        }
-
-        .retry-btn {
-          margin-top: 10px;
-          padding: 10px 16px;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
-          gap: 20px;
-          margin-bottom: 30px;
-        }
-
-        .stat-card {
-          background: rgba(255,255,255,0.05);
-          padding: 20px;
-          border-radius: 20px;
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .stat-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .icon-box {
-          width: 45px;
-          height: 45px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.08);
-        }
-
-        .trend {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          color: #22c55e;
-          font-size: 12px;
-        }
-
-        .stat-value {
-          font-size: 34px;
-          margin-top: 20px;
-          font-weight: bold;
-        }
-
-        .stat-title {
-          color: #94a3b8;
-          margin-top: 6px;
-        }
-
-        .section-title {
-          margin-bottom: 20px;
-        }
-
-        .features-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
-          gap: 20px;
-          margin-bottom: 30px;
-        }
-
-        .feature-card {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
-          padding: 24px;
-          border-radius: 20px;
-          cursor: pointer;
-          transition: 0.3s;
-        }
-
-        .feature-card:hover {
-          transform: translateY(-5px);
-        }
-
-        .feature-icon {
-          width: 50px;
-          height: 50px;
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(255,255,255,0.08);
-          margin-bottom: 20px;
-        }
-
-        .feature-card h3 {
-          margin-bottom: 10px;
-        }
-
-        .feature-card p {
-          color: #94a3b8;
-          margin-bottom: 20px;
-        }
-
-        .feature-card button {
-          border: none;
-          background: #3b82f6;
-          color: white;
-          padding: 10px 16px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          cursor: pointer;
-        }
-
-        .activity-section {
-          background: rgba(255,255,255,0.05);
-          border-radius: 20px;
-          padding: 20px;
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .activity-item {
-          display: flex;
-          gap: 14px;
-          padding: 14px 0;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .activity-item:last-child {
-          border-bottom: none;
-        }
-
-        .activity-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: rgba(255,255,255,0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .activity-title {
-          font-weight: 600;
-        }
-
-        .activity-description {
-          color: #94a3b8;
-          font-size: 14px;
-          margin-top: 4px;
-        }
-
-        @media(max-width:768px){
-          .dashboard{
-            padding:20px;
-          }
-
-          .header h1{
-            font-size:32px;
-          }
-        }
-      `}</style>
-
-      <div className="dashboard">
-        <div className="header">
-          <h1>Health Dashboard 👋</h1>
-          <p>
-            Manage prescriptions, reports, and symptoms
-            in one place.
-          </p>
-        </div>
-
-        {error && (
-          <div className="error-box">
-            {error}
-
-            <button
-              className="retry-btn"
-              onClick={refetch}
-            >
-              Retry
-            </button>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: "24px",
+              fontWeight: 800,
+              color: "#f8fafc",
+              marginBottom: 8,
+            }}>
+              Health Tools
+            </h2>
+            <p style={{ color: "#94a3b8", fontSize: 14 }}>
+              Powerful AI features to simplify healthcare management.
+            </p>
           </div>
-        )}
 
-        <div className="stats-grid">
-          <StatCard
-            title="Prescriptions"
-            value={stats.prescriptions}
-            icon={Pill}
-            loading={loading}
-          />
+          <section className="dash-grid dash-tools">
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={index}
+                  className="dash-card"
+                  onClick={() => navigate(feature.path)}
+                  style={{ cursor: "pointer", animationDelay: `${index * 70 + 120}ms` }}
+                >
+                  <div
+                    className="dash-card-glow"
+                    style={{ background: feature.glow }}
+                  />
+                  <div className="dash-card-inner">
+                    <div className={`dash-icon-box bg-gradient-to-br ${feature.color}`}>
+                      <Icon size={26} className="text-white" />
+                    </div>
 
-          <StatCard
-            title="Symptoms"
-            value={stats.symptomEntries}
-            icon={ClipboardList}
-            loading={loading}
-          />
+                    <h3 className="dash-feature-title">{feature.title}</h3>
+                    <p className="dash-feature-desc">{feature.description}</p>
 
-          <StatCard
-            title="Reports"
-            value={stats.reports}
-            icon={FileSpreadsheet}
-            loading={loading}
-          />
-
-          <StatCard
-            title="Alerts"
-            value={stats.abnormalAlerts}
-            icon={AlertCircle}
-            loading={loading}
-          />
-        </div>
-
-        <div className="section-title">
-          <h2>Health Tools</h2>
-        </div>
-
-        <div className="features-grid">
-          {features.map((feature) => (
-            <FeatureCard
-              key={feature.title}
-              {...feature}
-              onClick={() => navigate(feature.path)}
-            />
-          ))}
-        </div>
-
-        <div className="activity-section">
-          <h2 style={{ marginBottom: 20 }}>
-            <Clock size={18} style={{ marginRight: 8 }} />
-            Recent Activity
-          </h2>
-
-          {loading ? (
-            <p>Loading activity...</p>
-          ) : recentActivity.length === 0 ? (
-            <p>No recent activity</p>
-          ) : (
-            recentActivity.map((item) => (
-              <ActivityCard
-                key={item.id}
-                item={item}
-              />
-            ))
-          )}
+                    <button className="dash-btn">
+                      Get Started
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
         </div>
       </div>
     </>
