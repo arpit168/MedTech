@@ -693,7 +693,7 @@ const Register = () => {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              Sign In
+             <div className='text-bold '> Sign In</div>
             </Link>
           </div>
         </div>
