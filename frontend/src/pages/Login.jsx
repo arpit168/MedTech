@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../services/api";
 
@@ -7,11 +8,8 @@ const Login = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
-
   const [rememberMe, setRememberMe] = useState(false);
-
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -19,7 +17,6 @@ const Login = () => {
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -35,18 +32,14 @@ const Login = () => {
       return false;
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       toast.error("Please enter a valid email");
       return false;
     }
 
     if (password.length < 6) {
-      toast.error(
-        "Password must be at least 6 characters"
-      );
+      toast.error("Password must be at least 6 characters");
       return false;
     }
 
@@ -60,17 +53,12 @@ const Login = () => {
 
     try {
       setLoading(true);
-
       const payload = {
         email: formData.email.trim(),
         password: formData.password,
       };
 
-      const response = await api.post(
-        "/auth/login",
-        payload
-      );
-
+      const response = await api.post("/auth/login", payload);
       const { token, user } = response.data;
 
       if (!token || !user) {
@@ -78,25 +66,16 @@ const Login = () => {
       }
 
       localStorage.setItem("token", token);
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify(user)
-      );
+      localStorage.setItem("user", JSON.stringify(user));
 
       if (rememberMe) {
-        localStorage.setItem(
-          "rememberMe",
-          "true"
-        );
+        localStorage.setItem("rememberMe", "true");
       }
 
       toast.success("Welcome Back 👋");
-
       navigate("/");
     } catch (error) {
       console.error("Login Error:", error);
-
       toast.error(
         error?.response?.data?.message ||
           error?.message ||
@@ -106,6 +85,123 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.1,
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: { duration: 0.3 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 12
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { 
+      scale: 0.95,
+      opacity: 0,
+      y: 30
+    },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 120,
+        damping: 20,
+        duration: 0.6
+      }
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 25
+      }
+    }
+  };
+
+  const glowVariants = {
+    animate: {
+      opacity: [0.3, 0.6, 0.3],
+      scale: [1, 1.1, 1],
+      transition: {
+        duration: 3,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  const inputVariants = {
+    focus: { 
+      scale: 1.02,
+      transition: { type: "spring", stiffness: 300, damping: 20 }
+    },
+    tap: { scale: 0.98 }
+  };
+
+  const buttonVariants = {
+    idle: { scale: 1 },
+    hover: { 
+      scale: 1.03,
+      boxShadow: "0 20px 40px rgba(59,130,246,.35)",
+      transition: { type: "spring", stiffness: 400, damping: 15 }
+    },
+    tap: { scale: 0.97 },
+    loading: {
+      scale: 0.98,
+      transition: { duration: 0.2 }
+    }
+  };
+
+  const iconVariants = {
+    animate: {
+      rotate: [0, 10, -10, 0],
+      transition: {
+        duration: 0.5,
+        ease: "easeInOut"
+      }
+    },
+    hover: {
+      rotate: [0, 15, -15, 0],
+      transition: {
+        duration: 0.6,
+        repeat: Infinity,
+        repeatDelay: 1
+      }
+    }
+  };
+
+  // const shakeAnimation = {
+  //   shake: {
+  //     x: [0, -10, 10, -10, 10, 0],
+  //     transition: { duration: 0.4 }
+  //   }
+  // };
 
   return (
     <>
@@ -121,6 +217,7 @@ const Login = () => {
         body {
           font-family: 'DM Sans', sans-serif;
           background: #0b1120;
+          overflow-x: hidden;
         }
 
         .login-page {
@@ -161,10 +258,9 @@ const Login = () => {
             inset 0 1px 0 rgba(255,255,255,.04);
           position: relative;
           overflow: hidden;
-          animation: fadeUp .5s ease;
         }
 
-        .login-card::before {
+        .login-card::after {
           content: "";
           position: absolute;
           top: 0;
@@ -178,11 +274,6 @@ const Login = () => {
             rgba(56,189,248,.8),
             transparent
           );
-        }
-
-        .login-header {
-          text-align: center;
-          margin-bottom: 34px;
         }
 
         .login-logo {
@@ -209,12 +300,14 @@ const Login = () => {
           font-size: 34px;
           color: #f8fafc;
           margin-bottom: 8px;
+          text-align: center;
         }
 
         .login-header p {
           color: #94a3b8;
           font-size: 14px;
           line-height: 1.6;
+          text-align: center;
         }
 
         .login-form {
@@ -271,6 +364,7 @@ const Login = () => {
           cursor: pointer;
           font-size: 13px;
           font-weight: 500;
+          transition: all 0.2s ease;
         }
 
         .forgot-btn:hover {
@@ -291,6 +385,12 @@ const Login = () => {
           cursor: pointer;
           color: #94a3b8;
           font-size: 16px;
+          transition: all 0.2s ease;
+        }
+
+        .toggle-password:hover {
+          color: #cbd5e1;
+          transform: translateY(-50%) scale(1.1);
         }
 
         .remember-box {
@@ -373,18 +473,6 @@ const Login = () => {
           transform: translateY(-1px);
         }
 
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(18px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         @media (max-width: 480px) {
           .login-card {
             padding: 34px 22px;
@@ -403,123 +491,206 @@ const Login = () => {
         }
       `}</style>
 
-      <main className="login-page">
-        <div className="login-card">
-          <header className="login-header">
-            <div className="login-logo">
-              🛡️
-            </div>
+      <AnimatePresence mode="wait">
+        <motion.main
+          key="login-page"
+          className="login-page"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {/* Animated background glow */}
+          <motion.div
+            variants={glowVariants}
+            animate="animate"
+            style={{
+              position: "absolute",
+              width: "50%",
+              height: "50%",
+              background: "radial-gradient(circle, rgba(59,130,246,0.15), transparent)",
+              borderRadius: "50%",
+              top: "20%",
+              left: "25%",
+              pointerEvents: "none"
+            }}
+          />
 
-            <h1>Welcome Back</h1>
-
-            <p>
-              Sign in to your MedTech account
-            </p>
-          </header>
-
-          <form
-            onSubmit={handleSubmit}
-            className="login-form"
+          <motion.div
+            className="login-card"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover="hover"
           >
-            <div className="form-group">
-              <label htmlFor="email">
-                Email Address
-              </label>
+            <motion.header
+              className="login-header"
+              variants={itemVariants}
+            >
+              <motion.div
+                className="login-logo"
+                variants={iconVariants}
+                animate="animate"
+                whileHover="hover"
+              >
+                🛡️
+              </motion.div>
 
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className="login-input"
-                placeholder="you@example.com"
-                autoComplete="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
+              <motion.h1 variants={itemVariants}>
+                Welcome Back
+              </motion.h1>
 
-            <div className="form-group">
-              <div className="password-header">
-                <label htmlFor="password">
-                  Password
+              <motion.p variants={itemVariants}>
+                Sign in to your MedTech account
+              </motion.p>
+            </motion.header>
+
+            <motion.form
+              onSubmit={handleSubmit}
+              className="login-form"
+              variants={itemVariants}
+            >
+              <motion.div
+                className="form-group"
+                variants={itemVariants}
+              >
+                <label htmlFor="email">
+                  Email Address
                 </label>
 
-                <button
-                  type="button"
-                  className="forgot-btn"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
-              <div className="password-wrapper">
-                <input
-                  id="password"
-                  name="password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
+                <motion.input
+                  id="email"
+                  name="email"
+                  type="email"
                   className="login-input"
-                  placeholder="Enter password"
-                  autoComplete="current-password"
-                  value={formData.password}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={formData.email}
                   onChange={handleChange}
+                  variants={inputVariants}
+                  whileFocus="focus"
+                  whileTap="tap"
                   required
                 />
+              </motion.div>
 
-                <button
-                  type="button"
-                  className="toggle-password"
-                  onClick={() =>
-                    setShowPassword((prev) => !prev)
-                  }
-                  aria-label="Toggle Password"
-                >
-                  {showPassword ? "🙈" : "👁"}
-                </button>
-              </div>
-            </div>
+              <motion.div
+                className="form-group"
+                variants={itemVariants}
+              >
+                <div className="password-header">
+                  <label htmlFor="password">
+                    Password
+                  </label>
 
-            <label className="remember-box">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={() =>
-                  setRememberMe((prev) => !prev)
-                }
-              />
+                  <motion.button
+                    type="button"
+                    className="forgot-btn"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Forgot Password?
+                  </motion.button>
+                </div>
 
-              <span>
-                Remember me for 30 days
-              </span>
-            </label>
+                <div className="password-wrapper">
+                  <motion.input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    className="login-input"
+                    placeholder="Enter password"
+                    autoComplete="current-password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    variants={inputVariants}
+                    whileFocus="focus"
+                    whileTap="tap"
+                    required
+                  />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="login-btn"
+                  <motion.button
+                    type="button"
+                    className="toggle-password"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label="Toggle Password"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    {showPassword ? "🙈" : "👁"}
+                  </motion.button>
+                </div>
+              </motion.div>
+
+              <motion.label
+                className="remember-box"
+                variants={itemVariants}
+                whileHover={{ x: 5 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={() => setRememberMe((prev) => !prev)}
+                />
+                <span>Remember me for 30 days</span>
+              </motion.label>
+
+              <motion.button
+                type="submit"
+                disabled={loading}
+                className="login-btn"
+                variants={buttonVariants}
+                initial="idle"
+                whileHover={!loading ? "hover" : "idle"}
+                whileTap={!loading ? "tap" : "idle"}
+                animate={loading ? "loading" : "idle"}
+              >
+                {loading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    style={{ display: "inline-block" }}
+                  >
+                    ⚡
+                  </motion.div>
+                ) : (
+                  "Sign In"
+                )}
+                {loading && " Signing In..."}
+              </motion.button>
+            </motion.form>
+
+            <motion.footer
+              className="login-footer"
+              variants={itemVariants}
             >
-              {loading
-                ? "Signing In..."
-                : "Sign In"}
-            </button>
-          </form>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                New to MedTech?
+              </motion.p>
 
-          <footer className="login-footer">
-            <p>New to MedTech?</p>
-
-            <Link
-              to="/register"
-              className="signup-link"
-            >
-              Create Account
-            </Link>
-          </footer>
-        </div>
-      </main>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link to="/register" className="signup-link">
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                    style={{ display: "inline-block", marginRight: "8px" }}
+                  >
+                    ✨
+                  </motion.span>
+                  Create Account
+                </Link>
+              </motion.div>
+            </motion.footer>
+          </motion.div>
+        </motion.main>
+      </AnimatePresence>
     </>
   );
 };
